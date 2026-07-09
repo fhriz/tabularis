@@ -12,6 +12,7 @@ import {
   type MergedRow,
 } from "../../utils/dataGrid";
 import { isGeometricType } from "../../utils/geometry";
+import { isEnumType, parseEnumValues } from "../../utils/columnTypes";
 import { isBlobColumn, isBlobWireFormat } from "../../utils/blob";
 import { isLongTextCellTarget, truncateCellPreview } from "../../utils/text";
 import { getForeignKeyForPreview } from "../../utils/foreignKeys";
@@ -430,6 +431,54 @@ export const MemoRow = React.memo(function MemoRow(rowCtx: MemoRowProps) {
                           onKeyDown={handleKeyDown}
                           inputRef={editInputRef}
                         />
+                      );
+                    }
+                    if (colType && isEnumType(colType)) {
+                      const enumValues = parseEnumValues(colType);
+                      const isNullable =
+                        columnInfo.nullableColumns?.includes(colName) ?? false;
+                      const rawVal = editingCell.value;
+                      const currentValue =
+                        rawVal === null || rawVal === undefined
+                          ? ""
+                          : String(rawVal);
+                      return (
+                        <>
+                          <span className="invisible whitespace-nowrap">
+                            {String(displayValue)}
+                          </span>
+                          <select
+                            ref={(el) => {
+                              (
+                                editInputRef as React.MutableRefObject<HTMLElement | null>
+                              ).current = el;
+                            }}
+                            value={currentValue}
+                            onChange={(e) => {
+                              const newVal =
+                                e.target.value === "" ? null : e.target.value;
+                              setEditingCell((prev) =>
+                                prev
+                                  ? { ...prev, value: newVal }
+                                  : null,
+                              );
+                            }}
+                            onBlur={handleEditCommit}
+                            onKeyDown={(e) => {
+                              if (e.key === "Escape") {
+                                setEditingCell(null);
+                              }
+                            }}
+                            className="absolute inset-0 flex items-center max-w-[400px] bg-base text-primary border border-blue-500 rounded shadow-lg p-2 font-mono text-sm z-50 outline-none"
+                          >
+                            {isNullable && <option value="">NULL</option>}
+                            {enumValues.map((val) => (
+                              <option key={val} value={val}>
+                                {val}
+                              </option>
+                            ))}
+                          </select>
+                        </>
                       );
                     }
                     const textValue = String(editingCell.value ?? "");

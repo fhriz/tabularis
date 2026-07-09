@@ -63,6 +63,31 @@ export function buildColumnDefinition(form: ColumnFormData): ColumnDefinition {
 }
 
 /**
+ * Checks whether a column type string represents an ENUM type
+ * (e.g. "enum('pending','approved','rejected')").
+ */
+export function isEnumType(dataType: string): boolean {
+  return /^enum\s*\(/i.test(dataType);
+}
+
+/**
+ * Extracts the allowed values from an ENUM type definition.
+ * Returns the values unquoted, e.g. ["pending", "approved", "rejected"].
+ */
+export function parseEnumValues(dataType: string): string[] {
+  const match = dataType.match(/^enum\s*\((.+)\)$/i);
+  if (!match) return [];
+  // Match single-quoted strings, handling escaped single quotes ('')
+  const values: string[] = [];
+  const re = /'((?:[^']|'')*)'/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(match[1])) !== null) {
+    values.push(m[1].replace(/''/g, "'"));
+  }
+  return values;
+}
+
+/**
  * Returns the list of unique extension names required by the given column types.
  */
 export function getRequiredExtensions(
