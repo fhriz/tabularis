@@ -12,7 +12,12 @@ import {
   type MergedRow,
 } from "../../utils/dataGrid";
 import { isGeometricType } from "../../utils/geometry";
-import { isEnumType, parseEnumValues } from "../../utils/columnTypes";
+import {
+  isEnumType,
+  parseEnumValues,
+  isSetType,
+  parseSetValues,
+} from "../../utils/columnTypes";
 import { isBlobColumn, isBlobWireFormat } from "../../utils/blob";
 import { isLongTextCellTarget, truncateCellPreview } from "../../utils/text";
 import { getForeignKeyForPreview } from "../../utils/foreignKeys";
@@ -24,6 +29,7 @@ import { JsonCell } from "./JsonCell";
 import { JsonExpansionEditor } from "./JsonExpansionEditor";
 import { TextCell } from "./TextCell";
 import { TextExpansionEditor } from "./TextExpansionEditor";
+import { EnumSetInput } from "./EnumSetInput";
 import type { ForeignKey } from "../../types/editor";
 
 /**
@@ -97,6 +103,7 @@ export interface RowCtx {
     colName: string,
   ) => void;
   handleEditCommit: () => void;
+  commitEditWithValue: (value: unknown) => void;
   handleKeyDown: (e: React.KeyboardEvent) => void;
   onForeignKeyShowPanel?: (fk: ForeignKey, value: unknown) => void;
   onForeignKeyHidePanel?: () => void;
@@ -182,6 +189,7 @@ export const MemoRow = React.memo(function MemoRow(rowCtx: MemoRowProps) {
     handleCellDoubleClick,
     handleContextMenu,
     handleEditCommit,
+    commitEditWithValue,
     handleKeyDown,
     onForeignKeyShowPanel,
     onForeignKeyHidePanel,
@@ -433,51 +441,43 @@ export const MemoRow = React.memo(function MemoRow(rowCtx: MemoRowProps) {
                         />
                       );
                     }
-                    if (colType && isEnumType(colType)) {
-                      const enumValues = parseEnumValues(colType);
+                    const isEnumCol = colType && isEnumType(colType);
+                    const isSetCol = colType && isSetType(colType);
+                    if (isEnumCol || isSetCol) {
+                      const allowedValues = isSetCol
+                        ? parseSetValues(colType!)
+                        : parseEnumValues(colType!);
                       const isNullable =
                         columnInfo.nullableColumns?.includes(colName) ?? false;
                       const rawVal = editingCell.value;
                       const currentValue =
                         rawVal === null || rawVal === undefined
-                          ? ""
+                          ? null
                           : String(rawVal);
                       return (
                         <>
                           <span className="invisible whitespace-nowrap">
                             {String(displayValue)}
                           </span>
-                          <select
-                            ref={(el) => {
-                              (
-                                editInputRef as React.MutableRefObject<HTMLElement | null>
-                              ).current = el;
-                            }}
+                          <EnumSetInput
+                            variant="grid"
+                            multiple={!!isSetCol}
+                            autoOpen
+                            rootRef={
+                              editInputRef as React.MutableRefObject<HTMLElement | null>
+                            }
                             value={currentValue}
-                            onChange={(e) => {
-                              const newVal =
-                                e.target.value === "" ? null : e.target.value;
+                            options={allowedValues}
+                            isNullable={isNullable}
+                            onChange={(newVal) =>
                               setEditingCell((prev) =>
-                                prev
-                                  ? { ...prev, value: newVal }
-                                  : null,
-                              );
-                            }}
-                            onBlur={handleEditCommit}
-                            onKeyDown={(e) => {
-                              if (e.key === "Escape") {
-                                setEditingCell(null);
-                              }
-                            }}
-                            className="absolute inset-0 flex items-center max-w-[400px] bg-base text-primary border border-blue-500 rounded shadow-lg p-2 font-mono text-sm z-50 outline-none"
-                          >
-                            {isNullable && <option value="">NULL</option>}
-                            {enumValues.map((val) => (
-                              <option key={val} value={val}>
-                                {val}
-                              </option>
-                            ))}
-                          </select>
+                                prev ? { ...prev, value: newVal } : null,
+                              )
+                            }
+                            onCommitValue={commitEditWithValue}
+                            onClose={handleEditCommit}
+                            onCancel={() => setEditingCell(null)}
+                          />
                         </>
                       );
                     }

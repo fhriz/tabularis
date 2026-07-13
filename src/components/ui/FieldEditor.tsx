@@ -7,7 +7,13 @@ import { DateInput } from "./DateInput";
 import { JsonInput } from "./JsonInput";
 import { TextInput } from "./TextInput";
 import { isGeometricType, formatGeometricValue } from "../../utils/geometry";
-import { isEnumType, parseEnumValues } from "../../utils/columnTypes";
+import {
+  isEnumType,
+  parseEnumValues,
+  isSetType,
+  parseSetValues,
+} from "../../utils/columnTypes";
+import { EnumSetInput } from "./EnumSetInput";
 import { isBlobColumn } from "../../utils/blob";
 import { isJsonColumn, isJsonContent } from "../../utils/json";
 import {
@@ -80,12 +86,18 @@ export const FieldEditor = ({
       ? isEnumType(type)
       : false;
   const enumValues = isEnum ? parseEnumValues(type) : [];
+  const isSet =
+    !isBlob && !isGeometric && !isJson && !dateMode && !isEnum && type
+      ? isSetType(type)
+      : false;
+  const setValues = isSet ? parseSetValues(type) : [];
   const isLongText =
     !isBlob &&
     !isGeometric &&
     !isJson &&
     !dateMode &&
     !isEnum &&
+    !isSet &&
     isTextColumn(type) &&
     (isLongTextValue(value) || isLongTextValue(originalValue));
 
@@ -141,21 +153,16 @@ export const FieldEditor = ({
       onChange={(newValue) => onChange(newValue)}
       className={className}
     />
-  ) : isEnum ? (
-    <select
-      value={value === null || value === undefined ? "" : String(value)}
-      onChange={(e) =>
-        onChange(e.target.value === "" ? null : e.target.value)
-      }
-      className={`w-full px-3 py-2 bg-base border border-strong rounded-lg text-primary font-mono focus:border-blue-500 focus:outline-none ${className}`}
-    >
-      {isNullable && <option value="">NULL</option>}
-      {enumValues.map((val) => (
-        <option key={val} value={val}>
-          {val}
-        </option>
-      ))}
-    </select>
+  ) : isEnum || isSet ? (
+    <EnumSetInput
+      variant="inline"
+      multiple={isSet}
+      value={value === null || value === undefined ? null : String(value)}
+      options={isSet ? setValues : enumValues}
+      isNullable={isNullable}
+      onChange={(newValue) => onChange(newValue)}
+      className={className}
+    />
   ) : isLongText ? (
     <TextInput
       value={value}

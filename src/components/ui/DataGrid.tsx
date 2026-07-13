@@ -782,6 +782,20 @@ export const DataGrid = React.memo(
       }
     }, [handleEditCommit, mergedRows, columns]);
 
+    // Commit a specific value in a single event, bypassing the editingCellRef
+    // lag (the ref is synced via a passive effect, so a picker that changes and
+    // commits within the same click — e.g. an ENUM dropdown — would otherwise
+    // read the stale previous value).
+    const commitEditWithValue = useCallback(
+      (value: unknown) => {
+        if (editingCellRef.current) {
+          editingCellRef.current = { ...editingCellRef.current, value };
+        }
+        handleEditCommit();
+      },
+      [handleEditCommit],
+    );
+
     const columnHelper = useMemo(() => createColumnHelper<unknown[]>(), []);
 
     const coreRowModel = useMemo(() => getCoreRowModel(), []);
@@ -1275,6 +1289,7 @@ export const DataGrid = React.memo(
         handleCellDoubleClick,
         handleContextMenu,
         handleEditCommit,
+        commitEditWithValue,
         handleKeyDown,
         onForeignKeyShowPanel,
         onForeignKeyHidePanel,
@@ -1312,6 +1327,7 @@ export const DataGrid = React.memo(
         handleCellDoubleClick,
         handleContextMenu,
         handleEditCommit,
+        commitEditWithValue,
         handleKeyDown,
         onForeignKeyShowPanel,
         onForeignKeyHidePanel,
