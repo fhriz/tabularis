@@ -1009,7 +1009,7 @@ pub async fn get_view_columns(
     let text = resolve_text_proto(&pool, params).await?;
 
     let query = r#"
-            SELECT column_name, data_type, column_key, is_nullable, extra, column_default, character_maximum_length
+            SELECT column_name, data_type, column_type, column_key, is_nullable, extra, column_default, character_maximum_length
             FROM information_schema.columns
             WHERE table_schema = ? AND table_name = ?
             ORDER BY ordinal_position
@@ -1021,12 +1021,24 @@ pub async fn get_view_columns(
         .iter()
         .map(|r| {
             let column_name = mysql_row_str(r, 0);
-            let data_type = mysql_row_str(r, 1);
-            let key = mysql_row_str(r, 2);
-            let null_str = mysql_row_str(r, 3);
-            let extra = mysql_row_str(r, 4);
-            let default_val = mysql_row_str_opt(r, 5);
-            let character_maximum_length: Option<u64> = r.try_get(6).ok();
+            let raw_data_type = mysql_row_str(r, 1);
+            let column_type = mysql_row_str(r, 2);
+            let key = mysql_row_str(r, 3);
+            let null_str = mysql_row_str(r, 4);
+            let extra = mysql_row_str(r, 5);
+            let default_val = mysql_row_str_opt(r, 6);
+            let character_maximum_length: Option<u64> = r.try_get(7).ok();
+
+            // For ENUM and SET, `data_type` returns only the base name (e.g. "enum"),
+            // while `column_type` returns the full definition with allowed values
+            // (e.g. "enum('pending','approved','rejected')").
+            let data_type = if raw_data_type.eq_ignore_ascii_case("enum")
+                || raw_data_type.eq_ignore_ascii_case("set")
+            {
+                column_type
+            } else {
+                raw_data_type
+            };
 
             let is_auto_increment = extra.contains("auto_increment");
 

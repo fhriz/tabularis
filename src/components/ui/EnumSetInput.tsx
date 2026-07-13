@@ -173,6 +173,9 @@ export const EnumSetInput = ({
         e.stopPropagation();
         cancel();
       } else if (e.key === "Enter" && variant === "grid") {
+        // Let Enter activate a focused option button (its own click commits the
+        // pick); only the root editor's Enter should close and commit.
+        if (e.target !== containerRef.current) return;
         e.preventDefault();
         close();
       }
@@ -277,6 +280,7 @@ export const EnumSetInput = ({
         onClick={() => {
           if (open) close();
           else {
+            cancelledRef.current = false;
             updatePosition();
             setOpen(true);
           }
